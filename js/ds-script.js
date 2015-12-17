@@ -91,15 +91,12 @@ function initialize() {
 		getPosition(e, audioContext);
 	}, false);
 
-	window.addEventListener("keyup", undo, false);
-	undo_btn.addEventListener("click", undo, false);
-	play_btn.addEventListener("click", function(e) {
-		for (var i = 0; i < bars.length; i++) {
-			bars[i].gain.gain.value = 0;
-		}
-		play = !play;
-		play_btn.innerHTML = play_btn.innerHTML == "Play" ? "Pause" : "Play";
+	window.addEventListener("keyup", function(e) {
+		if (e.keyCode == 27) undo(e);
+		else if (e.keyCode == 32)  playToggle(e);
 	}, false);
+	undo_btn.addEventListener("click", undo, false);
+	play_btn.addEventListener("click", playToggle, false);
 	clear_btn.addEventListener("click", function(e) {
 		for(var i = 0; i < bars.length; i++) {
 			bars[i].gain.gain.value = 0;
@@ -117,8 +114,16 @@ function initialize() {
 	console.log("initialized");
 }
 
+function playToggle(event) {
+	for (var i = 0; i < bars.length; i++) {
+		bars[i].gain.gain.value = 0;
+	}
+	play = !play;
+	play_btn.innerHTML = play_btn.innerHTML == "Play" ? "Pause" : "Play";
+}
+
 function undo(event) {
-	if(( event.keyCode == 27 || event.type == "click" ) && bars.length > 0) {
+	if(bars.length > 0) {
 		bars[bars.length - 1].gain.gain.value = 0;
 		bars.pop();
 		placeFlag = false;

@@ -93,10 +93,12 @@ function initialize() {
 
 	window.addEventListener("keyup", function(e) {
 		if (e.keyCode == 27) undo(e);
-		else if (e.keyCode == 32)  playToggle(e);
+		else if (e.keyCode == 32)  playToggle(e, play_btn);
 	}, false);
 	undo_btn.addEventListener("click", undo, false);
-	play_btn.addEventListener("click", playToggle, false);
+	play_btn.addEventListener("click", function(e) {
+		playToggle(e, play_btn);
+	}, false);
 	clear_btn.addEventListener("click", function(e) {
 		for(var i = 0; i < bars.length; i++) {
 			bars[i].gain.gain.value = 0;
@@ -114,7 +116,7 @@ function initialize() {
 	console.log("initialized");
 }
 
-function playToggle(event) {
+function playToggle(event, play_btn) {
 	for (var i = 0; i < bars.length; i++) {
 		bars[i].gain.gain.value = 0;
 	}
@@ -230,7 +232,22 @@ function draw(canvas) {
 	context.stroke();
 	context.closePath();
 
+	messAround(canvas, context);
+
 	context.restore();
+}
+
+function messAround(canvas, context) {
+
+}
+
+function getRandomColor() {
+    var letters = '0123456789ABCDEF'.split('');
+    var color = '#';
+    for (var i = 0; i < 6; i++ ) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
 }
 
 window.onload = initialize;

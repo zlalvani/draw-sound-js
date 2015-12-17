@@ -14,14 +14,25 @@ function Bar () {
 		this.x_ = temp_x;
 		this.y_ = temp_y;
 	}
+	this.updatePitch = function(x) {
+		var a = this.y - this.y_;
+		var b = this.x_ - this.x;
+		var c = (this.x - this.x_) * this.y + (this.y_ - this.y) * this.x;
+		this.pitch = Math.round((-(a * x) - c) / b);
+	} 
 };
 
 //var currentBar = new Bar();
 var bars = []
 var placeFlag = false;
+var play_pos = 0;
 var play = false;
+var tempo = .2;
 
 function initialize() {
+	window.AudioContext = window.AudioContext || window.webkitAudioContext;
+	if(!window.AudioContext) { return; }
+
 	var canvas = document.getElementById("canvas");
 	var play_btn = document.getElementById("play-pause");
 	var clear_btn = document.getElementById("clear");
@@ -32,7 +43,7 @@ function initialize() {
 
 	canvas.addEventListener("mousedown", getPosition, false);
 	play_btn.addEventListener("click", function(e) {
-
+		play = !play;
 	});
 	clear_btn.addEventListener("click", function(e) {
 		bars = [];
@@ -78,8 +89,10 @@ function getPosition(event) {
 		bar.x_ = x;
 		bar.y_ = y;
 		//console.log(bars[bars.length - 1].x_, bars[bars.length - 1].y_);
-		if (bar.x_ < bar.x) bar.swap();
+		bar.pitch = bar.y;
 		bar.complete = true;
+		if (bar.x_ < bar.x) bar.swap();
+		else if (bar.x_ == bar.x) bars.pop()
 		placeFlag = false;
 	}
 	else {
@@ -96,7 +109,17 @@ function getPosition(event) {
 }
 
 function update(canvas) {
-
+	if (play) {
+		//console.log("playing");
+		for (var i = 0; i < bars.length; i++){
+			bars[i].updatePitch(play_pos);
+			if (play_pos >= bars[i].x && play_pos <= bars[i].x_) bars[i].playing = true;
+			else bars[i].playing = false;
+		}
+		var dx = Math.round(canvas.width / 60 * tempo); 
+		play_pos = play_pos + dx < canvas.width ? play_pos + dx : 0;
+		//console.log(play_pos);
+	}
 
 	draw(canvas);
 }
@@ -117,8 +140,24 @@ function draw(canvas) {
 			context.lineTo(bars[i].x_, bars[i].y_)
 			context.stroke();
 			context.closePath();
+
+			if(bars[i].playing) {
+				context.beginPath();
+				context.arc(play_pos, bars[i].pitch, 7, 2 * Math.PI, false);
+				context.fillStyle = "red";
+				context.fill();
+				context.closePath();
+			}
 		}
 	}
+
+	context.strokeStyle = "red";
+	context.lineWidth = 3;
+	context.beginPath();
+	context.moveTo(play_pos, 0);
+	context.lineTo(play_pos, canvas.height);
+	context.stroke();
+	context.closePath();
 
 	context.restore();
 }

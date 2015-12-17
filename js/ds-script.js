@@ -24,7 +24,6 @@ function Bar () {
 			this.oscillators[i].start(0);
 		}
 
-
 		this.lowpass.type = this.lowpass.ALLPASS;
 		this.lowpass.frequency.value = 5000;
 		this.lowpass.Q.value = 35;
@@ -60,14 +59,18 @@ function Bar () {
 			}
 		}
 	};
-};
+}
 
-//var currentBar = new Bar();
 var bars = []
 var placeFlag = false;
 var play_pos = 0;
 var play = false;
 var tempo = .2;
+
+
+function isGoodNumber(n) {
+  return !isNaN(parseFloat(n)) && isFinite(n) && n > 0 && n < 10;
+}
 
 function initialize() {
 	window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -76,6 +79,8 @@ function initialize() {
 	var canvas = document.getElementById("canvas");
 	var play_btn = document.getElementById("play-pause");
 	var clear_btn = document.getElementById("clear");
+	var undo_btn = document.getElementById("undo");
+	var tempo_field = document.getElementById("tempo");
 	canvas.width = Math.round(window.innerWidth * .9);
 	canvas.height = Math.round(window.innerHeight * .8);
 
@@ -83,61 +88,55 @@ function initialize() {
 
 	audioContext = new window.AudioContext();
 	canvas.addEventListener("mousedown", function(e) { 
-		getPosition(e, audioContext) 
+		getPosition(e, audioContext);
 	}, false);
 
+	window.addEventListener("keyup", undo, false);
+	undo_btn.addEventListener("click", undo, false);
 	play_btn.addEventListener("click", function(e) {
+		for (var i = 0; i < bars.length; i++) {
+			bars[i].gain.gain.value = 0;
+		}
 		play = !play;
-	});
+		play_btn.innerHTML = play_btn.innerHTML == "Play" ? "Pause" : "Play";
+	}, false);
 	clear_btn.addEventListener("click", function(e) {
 		for(var i = 0; i < bars.length; i++) {
 			bars[i].gain.gain.value = 0;
 		}
 		bars = [];
 		placeFlag = false; //check here for bug
-	});
-
+	}, false);
+	tempo_field.addEventListener("input", function(e) {
+		if (isGoodNumber(tempo_field.value)) tempo = tempo_field.value;
+		console.log(tempo_field.value, tempo);
+	}, false);
 
 	window.setInterval(update, 1000 / 60, canvas);
 	
 	console.log("initialized");
 }
 
+function undo(event) {
+	if(( event.keyCode == 27 || event.type == "click" ) && bars.length > 0) {
+		bars[bars.length - 1].gain.gain.value = 0;
+		bars.pop();
+		placeFlag = false;
+	}
+}
+
 function getPosition(event, audioContext) {
-	//var x = new Number();
-	//var y = new Number();
-	/*
-	if (event.x != undefined && event.y != undefined) {
-		x = event.x;
-		y = event.y;
-	}
-	else {
-		x = event.clientX + document.body.scrollLeft +
-			document.documentElement.scrollLeft;
-		y = event.clientY + document.body.scrollTop +
-			document.documentElement.scrollTop;
-	}
-	*/
 
 	var canvas = document.getElementById("canvas");
 	var rect = canvas.getBoundingClientRect();
-	/*
-	x -= canvas.offsetLeft;
-	y -= canvas.offsetTop;
-
-
-	x = x - window.pageXOffset;
-	y = y + window.pageYOffset;
-	*/
 
 	var x = Math.round((event.clientX-rect.left)/(rect.right-rect.left)*canvas.width);
 	var y = Math.round((event.clientY-rect.top)/(rect.bottom-rect.top)*canvas.height);
-	//console.log(x, y);
+
 	if (placeFlag) {
 		var bar = bars[bars.length - 1];
 		bar.x_ = x;
 		bar.y_ = y;
-		//console.log(bars[bars.length - 1].x_, bars[bars.length - 1].y_);
 		bar.pitch = bar.y;
 		bar.complete = true;
 		if (bar.x_ < bar.x) bar.swap();
@@ -151,16 +150,13 @@ function getPosition(event, audioContext) {
 		bar.complete = false;
 		bar.initAudio(audioContext);
 		bars.push(bar);
-		//bars[bars.length - 1]
 		placeFlag = true;
 	}
-	//var context = canvas.getContext("2d");
-	//context.fillRect(x - 3, y - 3, 6, 6);
+
 }
 
 function update(canvas) {
 	if (play) {
-		//console.log("playing");
 		for (var i = 0; i < bars.length; i++){
 			if (play_pos >= bars[i].x && play_pos <= bars[i].x_) bars[i].playing = true;
 			else bars[i].playing = false;
@@ -168,7 +164,6 @@ function update(canvas) {
 		}
 		var dx = Math.round(canvas.width / 60 * tempo); 
 		play_pos = play_pos + dx < canvas.width ? play_pos + dx : 0;
-		//console.log(play_pos);
 	}
 
 	draw(canvas);
@@ -178,15 +173,29 @@ function draw(canvas) {
 	var context = canvas.getContext("2d");
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
-	context.lineWidth = 5;
-	context.strokeStyle = "grey";
 	context.save();
 
+	context.lineWidth = 2;
+	context.strokeStyle = "#D1D1D1";
+
+	context.save();
+	context.translate(Math.round(canvas.width / (2 * 10)), 0);
+	for (var i = 0; i < 10; i++) {
+		context.beginPath();
+		context.moveTo(0, 20);
+		context.lineTo(0, canvas.height - 20);
+		context.stroke();
+		context.closePath();
+		context.translate(Math.round(canvas.width / 10), 0);
+	}
+	context.restore();
+
+	context.lineWidth = 5;
+	context.strokeStyle = "grey";
 	for (var i = 0; i < bars.length; i++) {
 		if (bars[i].complete) {		
 			context.beginPath();
 			context.moveTo(bars[i].x, bars[i].y);
-			//console.log(bars[i].x, bars[i].y);
 			context.lineTo(bars[i].x_, bars[i].y_)
 			context.stroke();
 			context.closePath();
@@ -198,6 +207,13 @@ function draw(canvas) {
 				context.fill();
 				context.closePath();
 			}
+		}
+		else {
+			context.beginPath();
+			context.arc(bars[i].x, bars[i].y, 5, 2 * Math.PI, false);
+			context.fillStyle = "grey";
+			context.fill();
+			context.closePath();
 		}
 	}
 

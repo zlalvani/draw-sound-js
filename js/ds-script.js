@@ -6,6 +6,34 @@ function Bar () {
 	this.y_ = 0;
 	this.playing = false;
 	this.complete = false;
+	this.initAudio = function(audioContext) {
+		this.oscillators = [
+			audioContext.createOscillator(),
+			audioContext.createOscillator(),
+			audioContext.createOscillator()
+		];
+
+		this.lowpass = audioContext.createBiquadFilter();
+		this.gain = audioContext.createGain();
+
+		for(var i = 0; i < this.oscillators.length; i++) {
+			this.oscillators[i].frequency.value = 0;
+			this.oscillators[i].detune.value = 0;
+			this.oscillators[i].type = i == 0 ? 'triangle' : i == 1 ? 'sawtooth' : 'sine';
+			this.oscillators[i].connect(this.lowpass);
+			this.oscillators[i].start(0);
+		}
+
+
+		this.lowpass.type = this.lowpass.ALLPASS;
+		this.lowpass.frequency.value = 5000;
+		this.lowpass.Q.value = 35;
+		this.lowpass.connect(this.gain);
+
+		this.gain.gain.value = 0.1;
+		this.gain.connect(audioContext.destination);
+
+	};
 	this.swap = function() {
 		var temp_x = this.x;
 		var temp_y = this.y;
@@ -13,13 +41,25 @@ function Bar () {
 		this.y = this.y_;
 		this.x_ = temp_x;
 		this.y_ = temp_y;
-	}
+	};
 	this.updatePitch = function(x) {
 		var a = this.y - this.y_;
 		var b = this.x_ - this.x;
 		var c = (this.x - this.x_) * this.y + (this.y_ - this.y) * this.x;
 		this.pitch = Math.round((-(a * x) - c) / b);
-	} 
+
+		if (this.playing) this.gain.gain.value = 0.1;
+		else this.gain.gain.value = 0;
+		for(var i = 0; i < this.oscillators.length; i++) {
+			if (this.playing) {
+				var canvas = document.getElementById("canvas");
+				this.oscillators[i].frequency.value = (canvas.height - this.pitch) / canvas.height * 1500;
+			}
+			else {
+				this.oscillators[i].frequency.value = 0;
+			}
+		}
+	};
 };
 
 //var currentBar = new Bar();
@@ -41,20 +81,29 @@ function initialize() {
 
 	console.log(window.innerWidth, window.innerHeight);
 
-	canvas.addEventListener("mousedown", getPosition, false);
+	audioContext = new window.AudioContext();
+	canvas.addEventListener("mousedown", function(e) { 
+		getPosition(e, audioContext) 
+	}, false);
+
 	play_btn.addEventListener("click", function(e) {
 		play = !play;
 	});
 	clear_btn.addEventListener("click", function(e) {
+		for(var i = 0; i < bars.length; i++) {
+			bars[i].gain.gain.value = 0;
+		}
 		bars = [];
 		placeFlag = false; //check here for bug
 	});
+
+
 	window.setInterval(update, 1000 / 60, canvas);
 	
 	console.log("initialized");
 }
 
-function getPosition(event) {
+function getPosition(event, audioContext) {
 	//var x = new Number();
 	//var y = new Number();
 	/*
@@ -100,6 +149,7 @@ function getPosition(event) {
 		bar.x = x;
 		bar.y = y;
 		bar.complete = false;
+		bar.initAudio(audioContext);
 		bars.push(bar);
 		//bars[bars.length - 1]
 		placeFlag = true;
@@ -112,9 +162,9 @@ function update(canvas) {
 	if (play) {
 		//console.log("playing");
 		for (var i = 0; i < bars.length; i++){
-			bars[i].updatePitch(play_pos);
 			if (play_pos >= bars[i].x && play_pos <= bars[i].x_) bars[i].playing = true;
 			else bars[i].playing = false;
+			bars[i].updatePitch(play_pos);
 		}
 		var dx = Math.round(canvas.width / 60 * tempo); 
 		play_pos = play_pos + dx < canvas.width ? play_pos + dx : 0;
